@@ -1,12 +1,10 @@
 from twisted.internet.protocol import Factory
 from twisted.protocols.basic import LineReceiver
 from twisted.internet import reactor
-import random
+from node import *
+import random, base64, pickle
 
-class NodeState(object):
-    def __init__(self, n):
-        self.id = n
-        self.ready = False
+
 
 class NodesList(object):
     def __init__(self, n):
@@ -33,7 +31,7 @@ class NodesList(object):
 	for i in range(n):
 	    tmp = [x for x in range(n) if x not in self.graph[i] and x!=i]
 	    cnt = (n/2)+1 - len(self.graph[i])
-	    print i, tmp, cnt
+	    ##print i, tmp, cnt
 	    l = random.sample(tmp, cnt)
 	    self.graph[i].extend(l)
 	    for x in l:
@@ -41,26 +39,77 @@ class NodesList(object):
 	for l in self.graph:
 	    l.sort()
 
-n = NodesList(5)
-n.generate_graph()
-for i in range(len(n.graph)):
-    for l in n.graph[i]:
+import sys
+N = int(sys.argv[1])
+nodes = NodesList(N)
+nodes.generate_graph()
+for i in range(len(nodes.graph)):
+    for l in nodes.graph[i]:
 	print i, "--", l, ";"
-		
-	
+
+class CommunicationServer(object):
+    def __init__(self):
+	self.clients = {}
+	self.queue = {}
+
+    def add_client(self, c):
+	i = 0
+	while i in self.clients:
+	    i += 1
+	self.clients[i] = c
+	return i
+
+    def del_client(self, c):
+	for i in self.clients:
+	    if self.clients[i]==c:
+		del self.clients[i]
+		return
+
+    def requeue(self, i):
+	if i in self.queue:
+	    for m in self.queue[i]:
+		print 'Requeue', m
+		self.send_msg(m)
+	    del self.queue[i]
+
+
+    def send_msg(self, m):
+	m2 = pickle.loads(base64.b64decode(m))
+	addr =  m2[0]
+	msg = (m2[1],m2[2])
+	print addr, msg
+	if addr in self.clients:
+	   self.clients[addr].sendLine(base64.b64encode(pickle.dumps(msg)))
+	else:
+	    if addr not in self.queue:
+		self.queue[addr] = []
+	    self.queue[addr].append(m)
+
+    def send_raw_msg(self, id, msg, data):
+	self.clients[id].sendLine(base64.b64encode(pickle.dumps((msg,data))))
+
+
+serv = CommunicationServer()
 
 class DolevProtocol(LineReceiver):
 
+    def __init__(self):
+	self.clients = {}
+
     def connectionMade(self):
-        self.sendLine("Ok, I am listening.") 
-	
+#        self.sendLine("client connected") 
+	id = serv.add_client(self)
+    	data = {'id':id, 'neighbours':nodes.graph[id]}
+	print "client connected:", data
+	serv.send_raw_msg(id, msg_graph_give, data) 
+	serv.requeue(id)
+
+    def connectionLost(self, reason):
+	print "client lost"
+	serv.del_client(self)
 
     def lineReceived(self, line):
-	if line=="":
-		self.sendLine("BYE!")
-		self.transport.loseConnection()
-	else:
-		self.sendLine("Ok, line received: %s"%line)
+	serv.send_msg(line)
 
 # Next lines are magic:
 factory = Factory()
