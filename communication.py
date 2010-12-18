@@ -10,4 +10,3 @@ class Registry(object):
 
 	def write(self, k, v):
 		self.registry[k] = v
-  
