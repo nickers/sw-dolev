@@ -29,10 +29,10 @@ def wait_full_state(node,data):
 	"""
 	Stops this nodes reactor when whole graph was received.
 	"""
-	if len(node.roots)>=node.id:
+	if len(node.roots) >= node.id:
 		reactor.stop()
 	else:
-		reactor.callLater(0, lambda:wait_full_state(node,data))
+		reactor.callLater(0, lambda:wait_full_state(node, data))
 
 def generate_start_graph(node,data):
 	return
@@ -52,14 +52,19 @@ def get_state():
 	
 	Before sending request wait until node is fully initialized. 
 	"""
-	if node.id<0:
+	if node.id < 0:
 		reactor.callLater(0, get_state)
 		return
+	
 	node.send(node.id, generate_start_graph, None)
 	node.target_filename = target_filename
 	node.roots = {}
-	for i in range(0,node.id):
-		node.send(i, msg_get_connections, node.id)
+	if DO_PROBLEMS:
+		target_msg = msg_get_dirty_connections
+	else:
+		target_msg = msg_get_connections
+	for i in range(0, node.id):
+		node.send(i, target_msg, node.id)
 	node.send(node.id, wait_full_state, 0)
 
 class DolevClientFactory(protocol.ClientFactory):

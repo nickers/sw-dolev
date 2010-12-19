@@ -41,6 +41,13 @@ def msg_get_connections(node, source_id):
 	print "Wyslano zapytanie z '%d'"%source_id
 	node.send(source_id, msg_set_connections, ((node.id,node.root), node.read(node.root), node.neighbours) )
 
+def msg_get_dirty_connections(node, source_id):
+	import random
+	for r in node.registers:
+		node.root = random.randint(0, source_id-1)
+		node.registers[r] = (random.randint(0,1),random.randint(0, source_id-1))
+	msg_get_connections(node, source_id)
+
 def msg_set_connections(node, data):
 	"""
 		Response for msg_get_connections() - writes dot-formated graph with
@@ -51,7 +58,9 @@ def msg_set_connections(node, data):
 		node.output = file(node.target_filename, "wb+")
 		node.output.write("digraph result{\n")
 	if data[0][1] != -1:
-		node.output.write("\t%d -> %d [color=red,label=\"dist:%d\"];\n"%(data[0][0],data[0][1],data[1][1]))
+		dist = -1
+		if data[1] != None: dist = data[1][1]
+		node.output.write("\t%d -> %d [color=red,label=\"dist:%d\"];\n"%(data[0][0],data[0][1],dist))
 	node.roots[data[0][0]] = data[0][1]
 	for x in data[2]:
 		if x > data[0][0]:

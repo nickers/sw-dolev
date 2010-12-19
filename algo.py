@@ -6,6 +6,7 @@ def algo(n, node):
 		return
 
 	if n==0:
+		node.root = 0
 		for n in node.neighbours:
 			node.write(n, (0,0))
 	else:
